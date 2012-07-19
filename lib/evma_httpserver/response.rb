@@ -92,10 +92,22 @@ module EventMachine
       505 => "505 HTTP Version Not Supported"
     }
 
-    attr_accessor :status, :content, :headers, :chunks, :multiparts
+    attr_accessor :status, :headers, :chunks, :multiparts
 
     def initialize
       @headers = {}
+    end
+
+    def content= value
+      @content = value.to_s
+    end
+
+    def content
+      @content || ''
+    end
+
+    def content?
+      !!@content
     end
 
     def keep_connection_open arg=true
@@ -189,7 +201,7 @@ module EventMachine
     #
     def fixup_headers
       if @content
-        @headers["Content-Length"] = @content.to_s.length
+        @headers["Content-Length"] = @content.bytesize
       elsif @chunks
         @headers["Transfer-Encoding"] = "chunked"
         # Might be nice to ENSURE there is no content-length header,
@@ -226,10 +238,10 @@ module EventMachine
     def send_trailer
       send_headers unless @sent_headers
       if @content
-        # no-op
+        #no-op
       elsif @chunks
         unless @last_chunk_sent
-          chunk ""
+          chunk ''
           send_chunks
         end
       elsif @multiparts
@@ -238,15 +250,13 @@ module EventMachine
         # supposed to interact with the case where we leave the connection
         # open after transmitting the multipart response.
         send_data "\r\n--#{@multipart_boundary}--\r\n\r\n"
-      else
-        # no-op
       end
     end
 
     def send_content
       raise "sent content already" if @sent_content
       @sent_content = true
-      send_data((@content || "").to_s)
+      send_data(content)
     end
 
     # add a chunk to go to the output.
